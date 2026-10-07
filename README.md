@@ -50,7 +50,7 @@ Images above are Photoshop exports from synthetic data.
 ## Setup
 
 Development build, tested on Windows Photoshop 27.10. No signed release yet.
-[Build and load the plugin](DEVELOPMENT.md).
+[Build and load the plugin](DEVELOPMENT.md). [Build installers](docs/releasing.md).
 
 Use opaque, full-canvas raster inputs outside groups, with Normal blending and
 100% opacity/fill. Mask inputs require density 100% and feather 0.

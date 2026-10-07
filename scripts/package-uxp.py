@@ -9,9 +9,13 @@ import tempfile
 import zipfile
 from stage import ROOT, stage
 from artifact import verify as verify_artifact
+from release import record as record_release
 
 def package(cli, development=False):
     if not development:
+        subprocess.run(["git", "diff", "--exit-code", "HEAD", "--"], cwd=ROOT, stdout=subprocess.DEVNULL, check=True)
+        if (ROOT / "dist/LayerMath-release-input.json").exists():
+            raise ValueError("Release input record exists; move it aside before repackaging")
         verify_artifact("win", signed=True)
         verify_artifact("mac", signed=True)
     if not cli.is_file():
@@ -45,6 +49,8 @@ def package(cli, development=False):
         shutil.copy2(packages[0], target)
     checksum = hashlib.sha256(target.read_bytes()).hexdigest()
     target.with_suffix(".ccx.sha256").write_text(f"{checksum}  {name}\n")
+    if not development:
+        record_release(target)
     print(f"Verified CCX: {target}")
     return target
 

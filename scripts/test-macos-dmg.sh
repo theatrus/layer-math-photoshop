@@ -17,6 +17,6 @@ if [[ -z "${LAYER_MATH_DMG_PYTHON:-}" ]]; then
 fi
 "$LAYER_MATH_DMG_PYTHON" "$(dirname "$0")/dmg-layout.py" --verify "$mount"
 cmp "$ccx" "$mount/Install Layer Math.ccx"
-for doc in README.md NOTICE LICENSE THIRD_PARTY_NOTICES.txt; do test -s "$mount/Documentation/$doc"; done
+for doc in NOTICE LICENSE THIRD_PARTY_NOTICES.txt; do cmp "$(dirname "$0")/../$doc" "$mount/Documentation/$doc"; done
 test ! -e "$mount/Photoshop Plug-ins"
 echo 'Verified DMG layout, background alias and unchanged CCX; no installation performed.'

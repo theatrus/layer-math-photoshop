@@ -44,9 +44,14 @@ jobs:
       - run: python -m unittest discover -s test -p "test_*.py"
       - if: runner.os == 'Windows'
         shell: pwsh
+        run: ./scripts/test-installer.ps1
+      - if: runner.os == 'Windows'
+        shell: pwsh
         run: ./scripts/build.ps1 -BackendOnly
       - if: runner.os == 'macOS'
         run: bash scripts/build-macos.sh --backend-only
+      - if: runner.os == 'macOS'
+        run: bash scripts/test-dmg-build.sh
   native:
     # Enable only after provision-sdk.py installs verified encrypted inputs.
     if: github.event_name != 'pull_request' && github.repository == 'theatrus/layer-math-photoshop' && vars.ENABLE_NATIVE_BUILDS == 'true'

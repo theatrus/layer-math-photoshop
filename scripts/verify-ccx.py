@@ -8,7 +8,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 TARGETS = ["win/x64", "mac/arm64", "mac/x64"]
 
-def verify(path, extract_mac=None):
+def verify(path, extract_mac=None, extract_win=None):
     version = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]["version"]
     with zipfile.ZipFile(path) as archive:
         if len(archive.namelist()) != len(set(archive.namelist())):
@@ -30,11 +30,16 @@ def verify(path, extract_mac=None):
                 output = extract_mac / target.split("/")[1] / "layer_math.uxpaddon"
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_bytes(data)
+            if extract_win and target.startswith("win"):
+                output = extract_win / "x64" / "layer_math.uxpaddon"
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_bytes(data)
     print("CCX identity and all three addon entries verified (signatures checked separately)")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("ccx",type=Path)
     parser.add_argument("--extract-mac",type=Path)
+    parser.add_argument("--extract-win",type=Path)
     args=parser.parse_args()
-    verify(args.ccx,args.extract_mac)
+    verify(args.ccx,args.extract_mac,args.extract_win)

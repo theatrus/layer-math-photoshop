@@ -20,9 +20,11 @@ and [development guide](../DEVELOPMENT.md) for the tested subset.
   has not yet been validated.
 - Implemented but not yet exercised on their target infrastructure: macOS builds,
   trusted SDK CI, platform signing jobs, notarization, and DMG generation/checks.
-- Signing configuration: Apple secret names, Azure signing variables and the
-  `signing` environment confirmed present; live credential validation remains open.
-- Still open: signing smoke verification/SDK repository provisioning, both Mac host checks, minimum
+- Packaging added: Inno setup via Adobe UPIA, isolated lifecycle tests, versioned
+  ZIPs, source/hash-bound CCX records, and a draft-input release workflow for
+  signed setup and signed/notarized DMG. See [release steps](releasing.md).
+- Signing configuration: Windows and Mac signing/notarization smoke jobs passed.
+- Still open: SDK repository provisioning, both Mac host checks, minimum
   host validation, installer lifecycle, large-image performance/parallel evaluation,
   rendered preview/function browser, fuller layer configuration coverage and
   new-document metadata. Inputs currently exclude nested layers, vector/filter

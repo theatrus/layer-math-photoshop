@@ -2,8 +2,9 @@
 
 This is a working Windows feasibility build, not a signed public release.
 The engine, C ABI, native addon and Photoshop integration are implemented.
-macOS builds, release signing and DMG scripts are present but still require Mac
-and signing-environment verification. The full design is in [docs/plan.md](docs/plan.md).
+macOS builds and DMG scripts still require target-host verification. Both signing
+smoke jobs passed. See [release steps](docs/releasing.md) and the
+[full design](docs/plan.md).
 
 ## Build and test
 
@@ -215,11 +216,10 @@ on Windows and macOS. SDK and signing jobs are opt-in repository configuration;
 they never run for pull requests. No repository secrets or Azure credentials
 were copied by writing this implementation.
 
-On 2026-10-07, the repository's six Apple signing secret names, six Azure signing
-variables, and `signing` environment were confirmed present. Secret values were
-not read. A successful signing smoke run still needs to verify the credentials,
-Azure federation/role configuration, and certificate profile access before
-enabling release signing.
+On 2026-10-07, the repository's Windows signing and macOS signing/notarization
+smoke jobs passed in [run 37679773453](https://github.com/theatrus/layer-math-photoshop/actions/runs/37679773453).
+The `signing` environment and repository configuration are present. Native CI
+still needs the encrypted hybrid SDK provisioned and its enable flags set.
 
 To provision the pinned SDK inputs explicitly, with `gh` authenticated as a repo
 administrator and GnuPG installed:
@@ -284,12 +284,16 @@ the compressed image visually in Finder too. Run all Mac scripts on a Mac before
 claiming a macOS release. Artwork regeneration uses Pillow 10.4.0 and explicit
 font paths; the resulting PNG is committed, so packaging does not need Pillow.
 
-Windows uses Adobe's CCX installer for now. An Inno wrapper has intentionally
-not been implemented before proving an installation/update/uninstall handoff
-that reports success accurately. Signing the addon, a future setup wrapper and
-the final DMG are separate steps. Marketplace registration and an allocated
-Adobe distribution ID also remain outstanding; `us.theatr.layer-math` is the
-current development identity.
+Windows setup is built with `scripts/build-installer.ps1 -Ccx <file>` and Inno
+Setup 6.7.3. It calls Adobe UPIA, checks its exit status and reported version, and
+supports removal through Windows Settings. `scripts/test-installer.ps1` exercises
+the wrapper with an isolated fake Adobe agent. Real CCX lifecycle testing remains
+open. Signing the addon, setup wrapper and final DMG are separate steps.
+
+The [release workflow](.github/workflows/release.yml) builds signed setup, signed
+and notarized DMG, ZIPs and final checksums from a verified draft-release CCX.
+Follow [the release steps](docs/releasing.md). Adobe distribution-ID validation
+remains open; `us.theatr.layer-math` is the current development identity.
 
 Before a release, finish the open gates in the design, validate the oldest
 advertised Photoshop version and both Mac architectures, add third-party license

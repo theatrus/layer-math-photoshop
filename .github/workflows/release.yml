@@ -1,0 +1,163 @@
+name: Build release installers
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag with a draft release containing the signed CCX and release input record
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-installers-${{ inputs.release_tag }}
+  cancel-in-progress: false
+env:
+  RELEASE_TAG: ${{ inputs.release_tag }}
+jobs:
+  inputs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+      - run: python scripts/validate-source.py
+      - name: Download draft inputs once for both platforms
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+          version="${RELEASE_TAG#v}"
+          gh release download "$RELEASE_TAG" --pattern "LayerMath-Photoshop-${version}.ccx" --pattern 'LayerMath-release-input.json' --dir build/release-input
+          python scripts/release.py verify "build/release-input/LayerMath-Photoshop-${version}.ccx" build/release-input/LayerMath-release-input.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: LayerMath-release-input
+          path: build/release-input/
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    needs: inputs
+    runs-on: windows-latest
+    environment: signing
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: LayerMath-release-input
+          path: build/release-input
+      - name: Verify source, test setup, build installer and ZIP
+        shell: pwsh
+        run: |
+          python scripts/validate-source.py
+          if ($LASTEXITCODE) { throw 'Source validation failed' }
+          $version = $env:RELEASE_TAG.Substring(1)
+          $ccx = "build/release-input/LayerMath-Photoshop-$version.ccx"
+          python scripts/release.py verify $ccx build/release-input/LayerMath-release-input.json
+          if ($LASTEXITCODE) { throw 'CCX source validation failed' }
+          ./scripts/test-installer.ps1
+          ./scripts/build-installer.ps1 -Ccx $ccx
+          python scripts/release.py archives $ccx build/release-input/LayerMath-release-input.json win
+          if ($LASTEXITCODE) { throw 'ZIP packaging failed' }
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\dist
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Verify setup signature and hash final bytes
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG.Substring(1)
+          $setup = "dist/LayerMath-Photoshop-Windows-x64-Setup-$version.exe"
+          $sig = Get-AuthenticodeSignature -LiteralPath $setup
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'StackFoundry LLC') { throw 'Setup signature invalid' }
+          python scripts/release.py hash $setup
+          if ($LASTEXITCODE) { throw 'Hash generation failed' }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: LayerMath-Windows-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  macos:
+    needs: inputs
+    runs-on: macos-15
+    environment: signing
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: LayerMath-release-input
+          path: build/release-input
+      - name: Verify source and CCX
+        run: |
+          python3 scripts/validate-source.py
+          python3 scripts/release.py verify "build/release-input/LayerMath-Photoshop-${RELEASE_TAG#v}.ccx" build/release-input/LayerMath-release-input.json
+      - name: Import temporary Developer ID keychain
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_BUILD_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_BUILD_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          test -n "$APPLE_CERTIFICATE" && test -n "$APPLE_CERTIFICATE_PASSWORD" && test -n "$KEYCHAIN_PASSWORD"
+          keychain="$RUNNER_TEMP/layer-math-release.keychain-db"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 -D > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application: StackFoundry LLC/ { print $2; exit }')"
+          test -n "$identity"
+          printf 'CERT_ID=%s\n' "$identity" >> "$GITHUB_ENV"
+      - name: Build, sign, notarize and verify DMG; build ZIP
+        env:
+          APPLE_API_KEY_PRIVATE: ${{ secrets.APPLE_API_KEY_PRIVATE }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "$APPLE_API_KEY_PRIVATE" | base64 -D > "$key"
+          chmod 600 "$key"
+          ccx="build/release-input/LayerMath-Photoshop-${RELEASE_TAG#v}.ccx"
+          APPLE_API_KEY_PATH="$key" bash scripts/build-macos-dmg.sh "$ccx" "$CERT_ID"
+          python3 scripts/release.py archives "$ccx" build/release-input/LayerMath-release-input.json mac
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: LayerMath-macOS-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove signing material
+        if: always()
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          security delete-keychain "$RUNNER_TEMP/layer-math-release.keychain-db" || true
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"

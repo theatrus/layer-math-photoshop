@@ -1,0 +1,14 @@
+Layer Math for Photoshop
+
+Close Photoshop. Run the setup EXE, or double-click the CCX and follow Adobe's
+installer. Creative Cloud Desktop and Photoshop must already be installed for
+your Windows account. Start Photoshop and choose Plugins > Layer Math.
+
+Run a newer setup or CCX to update. Remove the plugin through Creative Cloud >
+Manage Plugins. If you used setup, Windows Settings > Apps also removes it.
+Setup verifies Adobe's reported plugin version before reporting success.
+
+Do not copy UXP files into Photoshop's native Plug-ins folder.
+Keep your PSDs and exported recipe files when uninstalling.
+
+Requires Windows x64 and Photoshop 25 or newer; tested on Photoshop 27.10.

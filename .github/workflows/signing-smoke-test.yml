@@ -1,0 +1,158 @@
+# On-demand check that code signing still works end to end, on both platforms:
+# Azure Artifact Signing for Windows, Developer ID + notarization for macOS.
+#
+# The real signing path only runs on a `v*` tag, so without this the first live
+# exercise of the credential chain would be a real release. This isolates the
+# parts most likely to break -- the OIDC subject match, the Certificate Profile
+# Signer role, and the endpoint/account/profile values -- and checks them
+# against a throwaway binary in a couple of minutes rather than a full build.
+#
+# Worth keeping rather than deleting after the first run: re-run it after any
+# change to the Entra app, the federated credential, the certificate profile,
+# or the signing account, and find out immediately instead of at the next
+# release.
+name: Signing smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  smoke:
+    name: Azure Artifact Signing smoke test
+    runs-on: windows-latest
+    # Load-bearing: must match the Entra federated credential subject
+    # `repo:theatrus@23114/layer-math-photoshop@1409267346:environment:signing`. Remove this and OIDC
+    # fails with an unhelpful audience/subject error.
+    environment: signing
+    steps:
+      - name: Show what we are about to use
+        shell: bash
+        run: |
+          echo "client id set : ${{ vars.AZURE_CLIENT_ID != '' }}"
+          echo "endpoint      : ${{ vars.SIGNING_ENDPOINT }}"
+          echo "account       : ${{ vars.SIGNING_ACCOUNT }}"
+          echo "profile       : ${{ vars.SIGNING_PROFILE }}"
+
+      # Failure here means the OIDC subject did not match the federated
+      # credential. That is the single most likely thing to be wrong.
+      - name: Authenticate to Azure (OIDC)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Confirm the identity we ended up as
+        shell: bash
+        run: az account show --query "{sub:name,user:user.name,type:user.type}" -o json
+
+      # A throwaway PE to sign. Rust is preinstalled on the runner, so this is
+      # far cheaper than building the real app just to test the credential path.
+      - name: Build a throwaway binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo new --bin "$RUNNER_TEMP/sigtest" --vcs none
+          cd "$RUNNER_TEMP/sigtest"
+          cargo build --release
+          cp target/release/sigtest.exe "$GITHUB_WORKSPACE/sigtest.exe"
+          ls -l "$GITHUB_WORKSPACE/sigtest.exe"
+
+      # Same action and inputs as the sign-windows job in ci.yml, or this stops testing the thing
+      # it claims to test. Microsoft's action authenticates through
+      # DefaultAzureCredential and so rides the azure/login session above.
+      - name: Sign it
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files: ${{ github.workspace }}\sigtest.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify the signature and publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          signtool=$(find "/c/Program Files (x86)/Windows Kits/10/bin" \
+                       -name signtool.exe -path "*x64*" | sort | tail -1)
+          echo "using: $signtool"
+          "$signtool" verify //pa //v "$GITHUB_WORKSPACE/sigtest.exe" | tee "$RUNNER_TEMP/verify.txt"
+          grep -q "StackFoundry LLC" "$RUNNER_TEMP/verify.txt" \
+            || { echo "FAIL: expected publisher StackFoundry LLC"; exit 1; }
+          echo "OK: signed and chains to a trusted root as StackFoundry LLC"
+
+  macos:
+    name: Developer ID + notarization smoke test
+    runs-on: macos-15
+    # Same environment as the Windows job: it holds the Developer ID p12, its
+    # password, the App Store Connect API key (9ZJLDR4SWL) and a keychain
+    # password. Restricted to main and v* tags.
+    environment: signing
+    timeout-minutes: 30
+    steps:
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_BUILD_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_BUILD_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$APPLE_CERTIFICATE"; test -n "$APPLE_CERTIFICATE_PASSWORD"; test -n "$KEYCHAIN_PASSWORD"
+          certificate_path="$RUNNER_TEMP/certificate.p12"
+          keychain_path="$RUNNER_TEMP/smoke-signing.keychain-db"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 -D > "$certificate_path"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 3600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -k "$keychain_path" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          # Select by name, never by thumbprint: the name survives renewals.
+          identity="$(security find-identity -v -p codesigning "$keychain_path" \
+            | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+          test -n "$identity"
+          echo "identity: $identity"
+          printf 'CERT_ID=%s\n' "$identity" >> "$GITHUB_ENV"
+
+      - name: Sign a throwaway binary
+        run: |
+          set -euo pipefail
+          printf 'int main(void){return 0;}\n' | clang -x c - -o "$RUNNER_TEMP/sigtest"
+          codesign --force --options runtime --timestamp --sign "$CERT_ID" "$RUNNER_TEMP/sigtest"
+          codesign --verify --strict --verbose=2 "$RUNNER_TEMP/sigtest"
+          codesign --display --verbose=2 "$RUNNER_TEMP/sigtest" 2>&1 | tee "$RUNNER_TEMP/display.txt"
+          grep -q '^Authority=Developer ID Application: StackFoundry LLC (HSRHLHH333)$' "$RUNNER_TEMP/display.txt"
+          grep -q '^Timestamp=' "$RUNNER_TEMP/display.txt"
+
+      # The part a certificate check alone cannot prove: that the API key is
+      # valid and Apple accepts what this identity signs.
+      - name: Notarize it
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PRIVATE: ${{ secrets.APPLE_API_KEY_PRIVATE }}
+        run: |
+          set -euo pipefail
+          key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "$APPLE_API_KEY_PRIVATE" | base64 -D > "$key_path"; chmod 600 "$key_path"
+          ditto -c -k --keepParent "$RUNNER_TEMP/sigtest" "$RUNNER_TEMP/sigtest.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/sigtest.zip" --key "$key_path" \
+            --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" \
+            --wait --timeout 20m --output-format json | tee "$RUNNER_TEMP/notary.json"
+          python3 -c 'import json,sys; s=json.load(open(sys.argv[1]))["status"]; print("notarization:", s); sys.exit(s != "Accepted")' "$RUNNER_TEMP/notary.json"
+
+      - name: Remove signing material
+        if: always()
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          security delete-keychain "$RUNNER_TEMP/smoke-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"

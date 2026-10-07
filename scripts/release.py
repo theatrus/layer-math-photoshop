@@ -41,7 +41,10 @@ def check(ccx, record):
     ccx_verifier.verify(ccx)
     # Panel bytes must come from the same checkout as the native artifact inventories.
     with zipfile.ZipFile(ccx) as archive:
-        for name in ("manifest.json", "index.html", "host.js", "panel.js", "pixels.js",
+        # Adobe's packager reformats manifest JSON. Compare all values, not whitespace.
+        if json.loads(archive.read("manifest.json")) != json.loads((ROOT / "uxp/manifest.json").read_bytes()):
+            raise ValueError("CCX source manifest mismatch")
+        for name in ("index.html", "host.js", "panel.js", "pixels.js",
                      "recipes.js", "live.js", "live-data.js", "icons/icon.png"):
             if archive.read(name) != (ROOT / "uxp" / name).read_bytes():
                 raise ValueError(f"CCX source file mismatch: {name}")

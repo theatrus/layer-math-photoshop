@@ -65,5 +65,24 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source file mismatch"):
                 release.check(ccx, record)
 
+    def test_adobe_manifest_formatting_preserves_values(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ccx, record = self.fixture(Path(temp))
+            with zipfile.ZipFile(ccx) as z:
+                files = {name: z.read(name) for name in z.namelist()}
+            manifest = json.loads(files["manifest.json"])
+            for changed in (False, True):
+                if changed:
+                    manifest["requiredPermissions"]["localFileSystem"] = "fullAccess"
+                files["manifest.json"] = json.dumps(manifest, separators=(",", ":")).encode()
+                with zipfile.ZipFile(ccx, "w") as z:
+                    for name, data in files.items(): z.writestr(name, data)
+                record.write_text(json.dumps(release.identity(ccx)))
+                if changed:
+                    with self.assertRaisesRegex(ValueError, "source manifest mismatch"):
+                        release.check(ccx, record)
+                else:
+                    release.check(ccx, record)
+
 
 if __name__ == "__main__": unittest.main()

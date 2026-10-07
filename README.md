@@ -49,7 +49,10 @@ Images above are Photoshop exports from synthetic data.
 
 ## Setup
 
-Development build, tested on Windows Photoshop 27.10. No signed release yet.
+Download the [0.1.0 preview](https://github.com/theatrus/layer-math-photoshop/releases/tag/v0.1.0).
+Use the Windows setup EXE or open the macOS DMG and install its CCX through Adobe.
+Requires Photoshop and Creative Cloud. Tested on Windows Photoshop 27.10;
+Mac host testing and Photoshop 25 compatibility testing are still pending.
 [Build and load the plugin](DEVELOPMENT.md). [Build installers](docs/releasing.md).
 
 Use opaque, full-canvas raster inputs outside groups, with Normal blending and

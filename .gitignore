@@ -1,0 +1,9 @@
+/target/
+/build/
+/dist/
+/.sdk/
+/node_modules/
+.DS_Store
+*.user
+__pycache__/
+*.pyc

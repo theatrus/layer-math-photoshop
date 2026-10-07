@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "status": "proposed",
+  "recipes": [
+    {
+      "name": "Screen stars",
+      "description": "For star-only data prepared for screen recombination.",
+      "inputs": ["Starless", "Stars"],
+      "parameters": {},
+      "expressions": {"shared": "combine(Starless, Stars, op_screen())"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Add stars",
+      "description": "For star-only data prepared for additive recombination.",
+      "inputs": ["Starless", "Stars"],
+      "parameters": {},
+      "expressions": {"shared": "combine(Starless, Stars, op_add())"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Screen blend strength",
+      "inputs": ["A", "B"],
+      "parameters": {"strength": 0.5},
+      "expressions": {"shared": "mix(A, combine(A, B, op_screen()), strength)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Weighted blend",
+      "inputs": ["A", "B"],
+      "parameters": {"weight": 0.3},
+      "expressions": {"shared": "mix(A, B, weight)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "SHO channel mapping",
+      "description": "RGB document with SII, Ha, and OIII already present as aligned grayscale-valued RGB layers; use channel 0 from each.",
+      "inputs": ["SII", "Ha", "OIII"],
+      "parameters": {},
+      "expressions": {"r": "SII[0]", "g": "Ha[0]", "b": "OIII[0]"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "HOO channel mapping",
+      "description": "RGB document with aligned grayscale-valued Ha and OIII layers; use channel 0 from each.",
+      "inputs": ["Ha", "OIII"],
+      "parameters": {},
+      "expressions": {"r": "Ha[0]", "g": "OIII[0]", "b": "OIII[0]"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Conditional replacement",
+      "inputs": ["A", "B"],
+      "parameters": {"threshold": 0.8},
+      "expressions": {"shared": "iif(A > threshold, B, A)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    }
+  ]
+}

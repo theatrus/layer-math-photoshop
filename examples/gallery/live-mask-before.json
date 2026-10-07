@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Live masked stretch",
+  "inputs": [
+    "A",
+    "B",
+    "M"
+  ],
+  "inputKinds": {
+    "A": "pixels",
+    "B": "pixels",
+    "M": "mask"
+  },
+  "parameters": {},
+  "expressions": {
+    "shared": "mix(A, B, M)"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  },
+  "description": "Blend the original and stretched image through an attached pixel mask. Check Live result before Apply."
+}

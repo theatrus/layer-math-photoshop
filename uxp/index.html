@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+* { box-sizing:border-box; }
+html,body { height:100%; margin:0; overflow:hidden; }
+body { color:var(--uxp-host-text-color); font-size:12px; display:flex; flex-direction:column; }
+.header { padding:10px 12px 6px; flex-shrink:0; }
+h2 { font-size:16px; margin:0; }
+#documentName { margin-top:4px; opacity:0.7; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.content { padding:0 12px 8px; flex:1; min-height:0; overflow:auto; }
+label { display:block; margin:8px 0 3px; }
+input,select,textarea { width:100%; min-width:0; margin:0 0 4px; border-radius:2px; }
+textarea { height:48px; font-family:monospace; font-size:12px; }
+.row,.binding,.parameter { display:flex; align-items:center; }
+.row>* { flex:1; min-width:0; }
+.row>*+*,.binding>*+*,.parameter>*+* { margin-left:6px; }
+.binding { margin-bottom:4px; }
+.binding input { width:72px; flex-shrink:0; }
+.binding select { flex:1; min-width:0; }
+.binding .input-kind { flex:0 0 64px; width:64px; }
+#liveEnabled { width:auto; margin-right:6px; }
+#liveState { white-space:pre-wrap; }
+#editLive { flex:0 0 48px; }
+#newResult { padding-left:4px; padding-right:4px; font-size:11px; }
+.parameter input { flex:1; min-width:0; }
+.parameter span { margin-bottom:4px; }
+button { border-radius:2px; border:1px solid #777; background-color:rgba(128,128,128,0.12); color:var(--uxp-host-text-color); height:26px; min-width:0; padding:3px 10px; margin:0; font-size:12px; }
+button:hover { background-color:rgba(128,128,128,0.25); }
+button:focus { border-color:#5096ed; }
+button:disabled { opacity:0.45; }
+.binding button,.parameter button { width:26px; padding:0; flex-shrink:0; margin-bottom:4px; }
+.section-title { display:flex; align-items:center; justify-content:space-between; margin:8px 0 4px; }
+.section-title label { margin:0; }
+.section-title button { height:24px; padding:2px 8px; }
+.hint { opacity:0.7; margin:3px 0 6px; font-size:11px; }
+#recipeDescription { white-space:normal; }
+.disclosure { width:100%; text-align:left; margin-top:6px; }
+.footer { padding:8px 12px 10px; flex-shrink:0; border-top:1px solid #777; }
+#apply { background-color:#326bb0; color:white; border-color:#568ad0; }
+#status { white-space:pre-wrap; margin-top:6px; max-height:56px; overflow:auto; font-size:11px; }
+#preview { white-space:pre-wrap; font-family:monospace; font-size:11px; margin-top:6px; }
+</style></head><body>
+<div class="header"><div class="section-title"><h2>Layer Math</h2><button id="refresh">Refresh layers</button></div><div id="documentName"></div></div>
+<div class="content">
+<label for="preset">Operation / recipe</label><select id="preset"><option value="">Custom expression</option></select>
+<div id="recipeDescription" class="hint"></div>
+<div class="section-title"><label>Inputs</label><button id="add">+ Input</button></div><div id="bindings"></div>
+<p class="hint">Pixels reads the original channels. Mask reads a layer's pixel mask as 0–1; use density 100% and feather 0.</p>
+<label for="mode">Expression</label><select id="mode"><option value="shared">Shared across channels</option><option value="rgb">Separate R / G / B</option></select>
+<label id="redLabel" for="expression" style="display:none">Red</label><textarea id="expression" aria-label="Shared or red expression">combine(A, B, op_screen())</textarea>
+<p class="hint">Write a formula, for example <code>mtf(0.25, A)</code> or <code>A - B</code>.</p>
+<div id="greenField" style="display:none"><label for="green">Green</label><textarea id="green" aria-label="Green expression">A</textarea></div>
+<div id="blueField" style="display:none"><label for="blue">Blue</label><textarea id="blue" aria-label="Blue expression">B</textarea></div>
+<button id="parametersToggle" class="disclosure" aria-expanded="false">+ Parameters</button>
+<div id="parametersSection" style="display:none"><p class="hint">Optional named numbers to use in your formula.</p><div id="parameters"></div><button id="addParameter">+ Parameter</button></div>
+<label for="name">Result name</label><input id="name" value="Layer Math" aria-label="Result name">
+<div class="row"><select id="destination" aria-label="Output destination"><option value="new-layer">Result layer</option><option value="new-document">New 32-bit document</option><option value="layer-mask">Write layer mask</option></select></div>
+<select id="maskTarget" aria-label="Target layer for mask" style="display:none"></select>
+<label><input id="liveEnabled" type="checkbox">Live result — update after edits</label>
+<div id="liveState" class="hint">Live recipes are stored with the result. Automatic updates require this plugin.</div>
+<div class="row"><select id="liveResults" aria-label="Saved Layer Math results"><option value="">Saved results…</option></select><button id="editLive">Edit</button></div>
+<div class="row"><button id="newResult">New result</button><button id="pauseLive">Pause</button><button id="resumeLive">Resume</button><button id="freezeLive">Freeze</button></div>
+<label for="range">Out-of-range 16-bit / mask values</label><select id="range"><option value="ask">Ask before writing</option><option value="rescale">Rescale globally</option><option value="clip">Clip to 0–1</option></select>
+<button id="cropToggle" class="disclosure" aria-expanded="false">+ Inspect crop</button>
+<div id="cropSection" style="display:none"><p class="hint">Full resolution, up to 128 × 128 pixels</p><div class="row"><div><label for="x">X</label><input id="x" type="number" value="0" min="0" aria-label="Crop X"></div><div><label for="y">Y</label><input id="y" type="number" value="0" min="0" aria-label="Crop Y"></div><button id="previewButton">Inspect</button></div><div id="preview"></div></div>
+</div>
+<div class="footer"><div class="row"><button id="load">Import</button><button id="save">Export</button><button id="cancel" disabled>Cancel</button><button id="apply">Apply</button></div><div id="status" role="status"></div></div>
+<script src="panel.js"></script></body></html>

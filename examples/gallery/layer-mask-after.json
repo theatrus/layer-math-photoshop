@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Read a layer mask",
+  "inputs": [
+    "M"
+  ],
+  "inputKinds": {
+    "M": "mask"
+  },
+  "parameters": {},
+  "expressions": {
+    "shared": "M"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  },
+  "description": "A scalar pixel mask is broadcast equally to R, G and B. Use Mask as the input kind."
+}

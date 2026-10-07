@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Write a brightness mask",
+  "inputs": [
+    "A"
+  ],
+  "inputKinds": {
+    "A": "pixels"
+  },
+  "parameters": {},
+  "expressions": {
+    "shared": "clamp((0.2126*A[0] + 0.7152*A[1] + 0.0722*A[2] - 0.05) / 0.3, 0, 1)"
+  },
+  "output": {
+    "destination": "layer-mask",
+    "depth": "document",
+    "outOfRange16": "ask"
+  },
+  "description": "Select Write layer mask and choose a target. Weighted RGB sample brightness is not a linear-light luminance conversion in this sRGB fixture."
+}

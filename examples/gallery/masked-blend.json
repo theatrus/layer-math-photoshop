@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Masked blend",
+  "description": "Use a prepared full-canvas raster mask: 0 keeps A, 1 selects B. RGB masks act per channel.",
+  "inputs": [
+    "A",
+    "B",
+    "Mask"
+  ],
+  "parameters": {},
+  "expressions": {
+    "shared": "mix(A, B, clamp(Mask, 0, 1))"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

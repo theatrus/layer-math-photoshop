@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "languageVersion": "layer-math-1",
-  "status": "proposed",
+  "status": "implemented",
   "recipes": [
     {
       "name": "Screen stars",
@@ -54,6 +54,230 @@
       "inputs": ["A", "B"],
       "parameters": {"threshold": 0.8},
       "expressions": {"shared": "iif(A > threshold, B, A)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Add",
+      "description": "Add both layers. Values above 1 require an output range choice.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "A + B"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Subtract",
+      "description": "Subtract B from A. Negative values require an output range choice.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "A - B"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Multiply",
+      "description": "Multiply corresponding samples in A and B.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "A * B"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Divide",
+      "description": "Divide A by B. A zero denominator is an error; no epsilon is substituted.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "A / B"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Difference",
+      "description": "Absolute difference between corresponding samples.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "abs(A - B)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Minimum",
+      "description": "Keep the lower value at each pixel and channel.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "min(A, B)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Maximum",
+      "description": "Keep the higher value at each pixel and channel.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "max(A, B)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Average",
+      "description": "Equal-weight average of both layers.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "(A + B) / 2"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Overlay",
+      "description": "Overlay B on A. Swapping inputs changes the result.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "combine(A, B, op_overlay())"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Soft light",
+      "description": "Apply the documented soft-light formula with A as the base.",
+      "inputs": ["A", "B"],
+      "parameters": {},
+      "expressions": {"shared": "combine(A, B, op_soft_light())"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Invert",
+      "description": "Invert normalized samples; HDR values remain unclipped.",
+      "inputs": ["A"],
+      "parameters": {},
+      "expressions": {"shared": "1 - A"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Gain and offset",
+      "description": "Scale brightness and add a constant offset.",
+      "inputs": ["A"],
+      "parameters": {"gain": 1.2, "offset": 0},
+      "expressions": {"shared": "gain * A + offset"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Subtract background",
+      "description": "Subtract a constant background. Choose new 32-bit output to preserve negatives.",
+      "inputs": ["A"],
+      "parameters": {"background": 0.02},
+      "expressions": {"shared": "A - background"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Midtones stretch",
+      "description": "Stretch samples in 0 to 1; midtones must be between 0 and 1.",
+      "inputs": ["A"],
+      "parameters": {"midtones": 0.25},
+      "expressions": {"shared": "mtf(midtones, A)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Gamma",
+      "description": "Power stretch of nonnegative samples. Use a positive gamma.",
+      "inputs": ["A"],
+      "parameters": {"gamma": 2},
+      "expressions": {"shared": "pow(A, 1 / gamma)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Threshold mask",
+      "description": "Create a binary mask independently for each channel.",
+      "inputs": ["A"],
+      "parameters": {"threshold": 0.25},
+      "expressions": {"shared": "iif(A >= threshold, 1, 0)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Screen stars with strength",
+      "description": "Recombine stars at adjustable strength. Start at 0–1; larger values can exceed the output range.",
+      "inputs": ["Starless", "Stars"],
+      "parameters": {"strength": 0.5},
+      "expressions": {"shared": "combine(Starless, strength * Stars, op_screen())"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Extract screen stars",
+      "description": "Invert screen recombination for normalized layers. Fully saturated starless samples are unrecoverable and explicitly return 0.",
+      "inputs": ["Combined", "Starless"],
+      "parameters": {},
+      "expressions": {"shared": "iif(Starless < 1, (Combined - Starless) / (1 - Starless), 0)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Logarithmic stretch",
+      "description": "Compress highlights and lift shadows. Use positive strength and nonnegative input samples.",
+      "inputs": ["A"],
+      "parameters": {"strength": 20},
+      "expressions": {"shared": "ln(1 + strength * A) / ln(1 + strength)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Black and white points",
+      "description": "Map black to 0 and white to 1. Require white > black. Output is not automatically clipped.",
+      "inputs": ["A"],
+      "parameters": {"black": 0.02, "white": 0.8},
+      "expressions": {"shared": "(A - black) / (white - black)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Soft threshold mask",
+      "description": "Ramp from 0 at low to 1 at high. Require high > low. Each channel is evaluated independently.",
+      "inputs": ["A"],
+      "parameters": {"low": 0.1, "high": 0.4},
+      "expressions": {"shared": "clamp((A - low) / (high - low), 0, 1)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Range mask",
+      "description": "Select a closed sample interval independently in each channel.",
+      "inputs": ["A"],
+      "parameters": {"low": 0.15, "high": 0.5},
+      "expressions": {"shared": "iif(A >= low && A <= high, 1, 0)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Masked blend",
+      "description": "Use a prepared full-canvas raster mask: 0 keeps A, 1 selects B. RGB masks act per channel.",
+      "inputs": ["A", "B", "Mask"],
+      "parameters": {},
+      "expressions": {"shared": "mix(A, B, clamp(Mask, 0, 1))"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "RGB average grayscale",
+      "description": "RGB documents only. Arithmetic channel average, not a colorimetric luminance conversion.",
+      "inputs": ["A"],
+      "parameters": {},
+      "expressions": {"shared": "(A[0] + A[1] + A[2]) / 3"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Saturation around RGB average",
+      "description": "RGB documents only. 0 gives channel-average gray; 1 retains color. Above 1 can produce negative or HDR values.",
+      "inputs": ["A"],
+      "parameters": {"saturation": 1.5},
+      "expressions": {"shared": "mix((A[0] + A[1] + A[2]) / 3, A, saturation)"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Channel gains",
+      "description": "RGB documents only. Independently scale red, green and blue samples.",
+      "inputs": ["A"],
+      "parameters": {"red": 1.2, "green": 1, "blue": 0.8},
+      "expressions": {"r": "red * A[0]", "g": "green * A[1]", "b": "blue * A[2]"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Swap red and blue",
+      "description": "RGB documents only. Exchange red and blue without changing green.",
+      "inputs": ["A"],
+      "parameters": {},
+      "expressions": {"r": "A[2]", "g": "A[1]", "b": "A[0]"},
+      "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
+    },
+    {
+      "name": "Detail boost from blurred layer",
+      "description": "Use a separately prepared aligned blurred raster layer. Layer Math does not generate the blur. Overshoot may need 32-bit output.",
+      "inputs": ["A", "Blur"],
+      "parameters": {"amount": 0.5},
+      "expressions": {"shared": "A + amount * (A - Blur)"},
       "output": {"destination": "new-layer", "depth": "document", "outOfRange16": "ask"}
     }
   ]

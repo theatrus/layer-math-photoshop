@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Screen stars with strength",
+  "description": "Recombine stars at adjustable strength. Start at 0\u20131; larger values can exceed the output range.",
+  "inputs": [
+    "Starless",
+    "Stars"
+  ],
+  "parameters": {
+    "strength": 0.5
+  },
+  "expressions": {
+    "shared": "combine(Starless, strength * Stars, op_screen())"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

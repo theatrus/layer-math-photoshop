@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Gamma",
+  "description": "Power stretch of nonnegative samples. Use a positive gamma.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {
+    "gamma": 2
+  },
+  "expressions": {
+    "shared": "pow(A, 1 / gamma)"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Logarithmic stretch",
+  "description": "Compress highlights and lift shadows. Use positive strength and nonnegative input samples.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {
+    "strength": 20
+  },
+  "expressions": {
+    "shared": "ln(1 + strength * A) / ln(1 + strength)"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

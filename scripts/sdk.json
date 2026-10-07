@@ -1,0 +1,8 @@
+{
+  "version": "6.5.0",
+  "release": "sdk-uxp-6.5.0",
+  "archive": "uxp-hybrid-plugin-sdk-v6.5.0.zip",
+  "sha256": "052d7578b5ae6fdf86f3a807966f78977e42196aa679c91daeb757904c8eb294",
+  "root": "uxp-hybrid-plugin-sdk-main",
+  "required": ["src/api/UxpAddonShared.h", "src/api/UxpAddonTypes.h", "src/utilities/UxpAddon.h"]
+}

@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Midtones stretch",
+  "description": "Stretch samples in 0 to 1; midtones must be between 0 and 1.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {
+    "midtones": 0.25
+  },
+  "expressions": {
+    "shared": "mtf(midtones, A)"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

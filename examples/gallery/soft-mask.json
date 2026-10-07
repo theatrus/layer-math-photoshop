@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Soft threshold mask",
+  "description": "Ramp from 0 at low to 1 at high. Require high > low. Each channel is evaluated independently.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {
+    "low": 0.1,
+    "high": 0.4
+  },
+  "expressions": {
+    "shared": "clamp((A - low) / (high - low), 0, 1)"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

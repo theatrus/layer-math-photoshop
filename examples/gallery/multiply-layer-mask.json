@@ -1,0 +1,23 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Multiply by a layer mask",
+  "inputs": [
+    "A",
+    "M"
+  ],
+  "inputKinds": {
+    "A": "pixels",
+    "M": "mask"
+  },
+  "parameters": {},
+  "expressions": {
+    "shared": "A*M"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  },
+  "description": "Multiply original pixel values by an attached mask. This writes a separate pixel layer."
+}

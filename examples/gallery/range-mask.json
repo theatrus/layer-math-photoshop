@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Range mask",
+  "description": "Select a closed sample interval independently in each channel.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {
+    "low": 0.15,
+    "high": 0.5
+  },
+  "expressions": {
+    "shared": "iif(A >= low && A <= high, 1, 0)"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

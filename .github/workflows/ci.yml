@@ -1,0 +1,204 @@
+name: Build and test Layer Math
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      macos_runner:
+        type: choice
+        default: macos-15
+        options: [macos-15, macos-15-intel]
+      release_tag:
+        description: Existing release tag to rebuild
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, "${{ inputs.macos_runner || 'macos-15' }}"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
+      - name: Record and validate source
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python scripts/validate-source.py
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.0'
+          components: rustfmt, clippy
+      - run: npm test
+      - run: python -m unittest discover -s test -p "test_*.py"
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build.ps1 -BackendOnly
+      - if: runner.os == 'macOS'
+        run: bash scripts/build-macos.sh --backend-only
+  native:
+    # Enable only after provision-sdk.py installs verified encrypted inputs.
+    if: github.event_name != 'pull_request' && github.repository == 'theatrus/layer-math-photoshop' && vars.ENABLE_NATIVE_BUILDS == 'true'
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win
+            os: windows-latest
+          - platform: mac
+            os: ${{ inputs.macos_runner || 'macos-15' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.0'
+          components: rustfmt, clippy
+      - name: Download encrypted hybrid SDK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release download sdk-uxp-6.5.0 --pattern uxp-hybrid-plugin-sdk-v6.5.0.zip.gpg --dir .sdk/ci
+      - if: runner.os == 'macOS'
+        run: command -v gpg || brew install gnupg
+      - name: Decrypt verified SDK
+        env:
+          UXP_HYBRID_SDK_PASSPHRASE: ${{ secrets.UXP_HYBRID_SDK_PASSPHRASE }}
+        run: python scripts/ci_sdk.py
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build.ps1 -UxpSdk .sdk/ci/extracted/uxp-hybrid-plugin-sdk-main
+      - if: runner.os == 'macOS'
+        run: bash scripts/build-macos.sh .sdk/ci/extracted/uxp-hybrid-plugin-sdk-main
+      - name: Record payload inventory
+        run: python scripts/artifact.py record ${{ matrix.platform }}
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: LayerMath-${{ matrix.platform }}-unsigned
+          path: build/addons/${{ matrix.platform }}/
+          if-no-files-found: error
+          retention-days: 1
+      - name: Clean decrypted SDK
+        if: always()
+        run: python scripts/ci_sdk.py --clean
+  sign-windows:
+    if: vars.ENABLE_SIGNING == 'true'
+    needs: native
+    environment: signing
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: LayerMath-win-unsigned
+          path: build/addons/win
+      - run: python scripts/artifact.py verify win
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files: ${{ github.workspace }}\build\addons\win\x64\layer_math.uxpaddon
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Verify publisher and signed payload
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature -LiteralPath build/addons/win/x64/layer_math.uxpaddon
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'StackFoundry LLC') { throw 'Invalid addon signature or publisher' }
+          python scripts/artifact.py record win --signed
+          if ($LASTEXITCODE) { throw 'Cannot record signed artifact' }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: LayerMath-win-signed
+          path: build/addons/win/
+          if-no-files-found: error
+          retention-days: 30
+  sign-macos:
+    if: vars.ENABLE_SIGNING == 'true'
+    needs: native
+    environment: signing
+    runs-on: ${{ inputs.macos_runner || 'macos-15' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: LayerMath-mac-unsigned
+          path: build/addons/mac
+      - run: python3 scripts/artifact.py verify mac
+      - name: Import temporary Developer ID keychain
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_BUILD_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_BUILD_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          test -n "$APPLE_CERTIFICATE" && test -n "$APPLE_CERTIFICATE_PASSWORD" && test -n "$KEYCHAIN_PASSWORD"
+          keychain="$RUNNER_TEMP/layer-math-signing.keychain-db"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 -D > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+          test -n "$identity"
+          printf 'CERT_ID=%s\n' "$identity" >> "$GITHUB_ENV"
+      - name: Sign and notarize Mac addons
+        env:
+          APPLE_API_KEY_PRIVATE: ${{ secrets.APPLE_API_KEY_PRIVATE }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          test -n "$APPLE_API_KEY_PRIVATE" && test -n "$APPLE_API_KEY" && test -n "$APPLE_API_ISSUER"
+          key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "$APPLE_API_KEY_PRIVATE" | base64 -D > "$key"
+          chmod 600 "$key"
+          APPLE_API_KEY_PATH="$key" bash scripts/sign-macos.sh build/addons/mac "$CERT_ID"
+          python3 scripts/artifact.py record mac --signed
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: LayerMath-mac-signed
+          path: build/addons/mac/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove signing material
+        if: always()
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          security delete-keychain "$RUNNER_TEMP/layer-math-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"

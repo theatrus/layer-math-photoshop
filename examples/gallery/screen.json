@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Screen stars",
+  "description": "For star-only data prepared for screen recombination.",
+  "inputs": [
+    "Starless",
+    "Stars"
+  ],
+  "parameters": {},
+  "expressions": {
+    "shared": "combine(Starless, Stars, op_screen())"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

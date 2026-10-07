@@ -1,0 +1,12 @@
+Layer Math for Photoshop
+
+1. Double-click Install Layer Math.ccx.
+2. Follow Adobe Creative Cloud's installation prompts.
+3. Open Photoshop and choose Plugins > Layer Math.
+
+This is a UXP hybrid plugin. Do not drag it into Photoshop's native Plug-ins folder.
+Adobe Creative Cloud must be installed. Native-code plugin installation and
+updates may require administrator credentials.
+
+Use Adobe's plugin management to update or uninstall. Your source images are
+never modified by installation. Export recipes before removing the plugin.

@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Channel gains",
+  "description": "RGB documents only. Independently scale red, green and blue samples.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {
+    "red": 1.2,
+    "green": 1,
+    "blue": 0.8
+  },
+  "expressions": {
+    "r": "red * A[0]",
+    "g": "green * A[1]",
+    "b": "blue * A[2]"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "clip"
+  }
+}

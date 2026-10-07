@@ -1,0 +1,12 @@
+Layer Math for Photoshop
+Copyright 2026 Layer Math contributors
+
+Build and distribution scripts adapted from FITS and XISF for Photoshop
+(https://github.com/theatrus/xisf-photoshop), licensed under Apache-2.0.
+
+The Rust evaluator includes serde and serde_json and their transitive dependencies
+under their respective MIT/Apache-2.0 licenses. Cargo.lock records exact versions.
+See THIRD_PARTY_NOTICES.txt for their license texts, including build dependencies.
+Adobe's UXP Hybrid Plugin SDK is an external build input under Adobe's terms;
+SDK sources, headers, templates and tools are not included in this repository or
+plugin package. Photoshop and Adobe are trademarks of Adobe.

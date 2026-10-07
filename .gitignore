@@ -7,3 +7,5 @@
 *.user
 __pycache__/
 *.pyc
+/.uxprc
+/.local-tools/

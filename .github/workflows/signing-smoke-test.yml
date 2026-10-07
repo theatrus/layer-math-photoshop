@@ -1,8 +1,7 @@
 # On-demand check that code signing still works end to end, on both platforms:
 # Azure Artifact Signing for Windows, Developer ID + notarization for macOS.
 #
-# The real signing path only runs on a `v*` tag, so without this the first live
-# exercise of the credential chain would be a real release. This isolates the
+# This runs independently of SDK builds and product packaging. It isolates the
 # parts most likely to break -- the OIDC subject match, the Certificate Profile
 # Signer role, and the endpoint/account/profile values -- and checks them
 # against a throwaway binary in a couple of minutes rather than a full build.

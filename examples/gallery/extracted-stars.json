@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Extract screen stars",
+  "description": "Invert screen recombination for normalized layers. Fully saturated starless samples are unrecoverable and explicitly return 0.",
+  "inputs": [
+    "Combined",
+    "Starless"
+  ],
+  "parameters": {},
+  "expressions": {
+    "shared": "iif(Starless < 1, (Combined - Starless) / (1 - Starless), 0)"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

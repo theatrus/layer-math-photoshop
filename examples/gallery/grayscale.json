@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "RGB average grayscale",
+  "description": "RGB documents only. Arithmetic channel average, not a colorimetric luminance conversion.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {},
+  "expressions": {
+    "shared": "(A[0] + A[1] + A[2]) / 3"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

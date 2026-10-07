@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "languageVersion": "layer-math-1",
+  "name": "Invert",
+  "description": "Invert normalized samples; HDR values remain unclipped.",
+  "inputs": [
+    "A"
+  ],
+  "parameters": {},
+  "expressions": {
+    "shared": "1 - A"
+  },
+  "output": {
+    "destination": "new-layer",
+    "depth": "document",
+    "outOfRange16": "ask"
+  }
+}

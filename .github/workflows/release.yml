@@ -17,6 +17,9 @@ jobs:
   inputs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # GitHub only exposes draft releases to tokens with repository write access.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
